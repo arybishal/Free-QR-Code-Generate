@@ -1,0 +1,31 @@
+<%
+const crumbLd = { '@context':'https://schema.org','@type':'BreadcrumbList','itemListElement': [{ '@type':'ListItem','position':1,'name':'Home','item': siteUrl + '/' }, { '@type':'ListItem','position':2,'name': page.h1,'item': page.canonical && page.canonical.startsWith('http') ? page.canonical : siteUrl + (page.canonical || '') }] };
+const safe = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
+let jsonld = `<script type="application/ld+json">${safe(crumbLd)}</script>`;
+if (page.key === 'faq' && typeof SITE_FAQS !== 'undefined') jsonld += `<script type="application/ld+json">${safe({ '@context':'https://schema.org','@type':'FAQPage','mainEntity': SITE_FAQS.map(f=>({'@type':'Question','name':f[0],'acceptedAnswer':{'@type':'Answer','text':f[1]}})) })}</script>`;
+%>
+<%- include('partials/head', { jsonld }) %>
+<nav class="crumbs" aria-label="Breadcrumb"><a href="/">Home</a> › <span><%= page.h1 %></span></nav>
+<section class="section narrow" id="generator">
+<h1><%= page.h1 %></h1>
+<% if (typeof page.updated !== 'undefined' && page.updated) { %><p class="hint">Last updated: <%= page.updated %></p><% } %>
+<% if (page.key === 'how') { %>
+<p>A QR code is a 2D barcode that stores text. Your phone camera reads the dark/light grid and acts on it: open a link, join WiFi, save a contact. <strong><%= brand %></strong> makes <em>static</em> codes — the data lives inside the pattern itself.</p>
+<h2>Why static means forever</h2>
+<p>Dynamic QR services store a short link on their server and charge you to keep it alive. If they shut down or you stop paying, your printed codes die. Static codes have no server, no account, no expiry — they scan until the paper crumbles.</p>
+<h2>Three steps to a perfect code</h2>
+<ol class="steps"><li class="glass"><strong>Encode little.</strong><p>Short content → sparse pattern → fast scans from far away.</p></li><li class="glass"><strong>Contrast hard.</strong><p>Dark code on a light background, ~4:1 minimum. The tool warns you automatically.</p></li><li class="glass"><strong>Size + quiet zone.</strong><p>≥2cm wide with a margin of 4 modules; error correction M (or H with a logo).</p></li></ol>
+<h2>Formats</h2>
+<p><strong>PNG/JPG</strong> for screens and documents · <strong>SVG</strong> vector for professional print at any size · <strong>PDF</strong> for sharing and print shops.</p>
+<% } else if (page.key === 'faq' && typeof SITE_FAQS !== 'undefined') { %>
+<% SITE_FAQS.forEach((f,i) => { %><details class="glass" <%= i===0?'open':'' %>><summary><%= f[0] %></summary><p><%= f[1] %></p></details><% }) %>
+<% } else { %>
+<% (page.body || []).forEach(sec => { %><h2><%= sec[0] %></h2><% sec[1].forEach(p => { %><p><%= p %></p><% }) %><% }) %>
+<% if (page.key === 'contact') { %>
+<% if (typeof sent !== 'undefined' && sent) { %><p class="ok">✓ Message noted — thank you. (Nothing is stored.)</p><% } %>
+<p>Prefer email? <a href="mailto:<%= contactEmail %>"><%= contactEmail %></a></p>
+<form method="post" action="/contact" class="narrow-form"><label>Name<input name="name" required autocomplete="name"></label><label>Email<input name="email" type="email" required autocomplete="email"></label><label>Message<textarea name="msg" rows="5" required></textarea></label><button>Send</button></form>
+<% } %>
+<% } %>
+</section>
+<%- include('partials/foot') %>

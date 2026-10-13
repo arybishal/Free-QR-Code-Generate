@@ -1,0 +1,76 @@
+<% /* Shared generator card — home, type and batch pages. Needs: page, fieldDefs. */ %>
+<section class="card glass tool" id="generator" aria-label="QR generator" data-pagetype="<%= page.type %>" data-batch="<%= page.batch ? 1 : 0 %>">
+  <div class="tool-head">
+    <div><p class="eyebrow">The studio</p><p class="tool-sub">Design your code — it updates live.</p></div>
+    <p class="live-pill" id="livePill"><span class="pulse" aria-hidden="true"></span>Live preview</p>
+  </div>
+  <div class="tabs" role="tablist" aria-label="QR types" id="tabs"></div>
+  <% if (page.batch) { %>
+  <div class="batchbox">
+    <h2>📦 Batch mode — list or CSV → ZIP</h2>
+    <p>Paste one item per line (URLs, texts, …), or upload a CSV. Each line becomes a PNG in one ZIP — all in your browser.</p>
+    <label>One item per line<textarea id="batchInput" rows="6" placeholder="https://example.com/1&#10;https://example.com/2"></textarea></label>
+    <div class="row2">
+      <label>…or upload CSV <input type="file" id="batchFile" accept=".csv,.txt"></label>
+      <label>QR type for batch
+        <select id="batchType"><option value="url">Website</option><option value="text">Text</option><option value="wifi">WiFi</option><option value="phone">Phone</option><option value="sms">SMS</option></select>
+      </label>
+    </div>
+    <button id="batchGo">Generate ZIP</button>
+    <p class="status" id="batchStatus" role="status" aria-live="polite"></p>
+  </div>
+  <% } %>
+  <div class="gen-grid">
+    <div class="form-col">
+      <form id="typeForm" novalidate></form>
+      <fieldset class="stylebox"><legend>Style &amp; quality</legend>
+        <div class="row2">
+          <label>Quality <select id="quality"><option value="512">Standard · 512px</option><option value="1024" selected>High · 1024px</option><option value="2048">Ultra · 2048px</option><option value="4096">Print · 4096px</option></select></label>
+          <label>Error correction <select id="eclevel"><option value="L">L — smallest</option><option value="M" selected>M — balanced</option><option value="Q">Q — sturdy</option><option value="H">H — max</option></select></label>
+        </div>
+        <p class="hint">Higher correction = denser but survives damage. Logo forces H.</p>
+        <div class="row2">
+          <label>Module style <select id="modStyle"><option value="square">Square</option><option value="rounded">Rounded</option><option value="dots">Dots</option></select></label>
+          <label>Eye style <select id="eyeStyle"><option value="square">Square</option><option value="rounded">Rounded</option><option value="circle">Circle</option></select></label>
+        </div>
+        <div class="row2">
+          <label>QR colour <input type="color" id="fg" value="#111111"></label>
+          <label>Background <input type="color" id="bg" value="#ffffff"></label>
+        </div>
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="grad" style="width:22px;height:22px"> Gradient to <input type="color" id="fg2" value="#4f46e5" style="max-width:120px"></label>
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="transparent" style="width:22px;height:22px"> Transparent background (PNG &amp; SVG)</label>
+        <p class="warn" id="contrastWarn" hidden>⚠ Low contrast — may not scan. Keep the code much darker than the background.</p>
+        <label>Margin (quiet zone): <span id="marginVal">4</span><input type="range" id="margin" min="0" max="10" value="4"></label>
+        <div class="row2">
+          <label>Centre logo (≤2MB, stays local) <input type="file" id="logo" accept="image/png,image/jpeg,image/svg+xml"></label>
+          <label>Logo size: <span id="logoVal">20%</span><input type="range" id="logoSize" min="15" max="22" value="20"></label>
+        </div>
+        <p class="scan" id="scanRow" hidden>Scannability: <span id="scanDot" aria-hidden="true"></span> <span id="scanText"></span></p>
+      </fieldset>
+      <details class="hist"><summary data-i18n="recent">🕘 Recent (this browser only)</summary><div id="histList"></div><button type="button" id="clearHist" data-i18n="clearHist">Clear history</button></details>
+    </div>
+    <div class="prev-col">
+      <div class="preview" id="previewWrap">
+        <canvas id="preview" width="560" height="560" role="img" aria-label="QR code preview"></canvas>
+        <p class="empty" id="emptyState">Enter details — your QR appears here instantly.</p>
+        <p class="dl-hint" data-i18n="dlHint">Pick a format below ↓</p>
+      </div>
+      <p class="reassure" data-i18n="reassure">Free forever. No sign-up. Nothing leaves your browser.</p>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <div class="dl-bar">
+        <button data-dl="png" disabled>PNG</button><button data-dl="jpg" disabled>JPG</button>
+        <button data-dl="svg" disabled>SVG</button><button data-dl="pdf" disabled>PDF</button>
+      </div>
+      <div class="dl-bar2"><button id="copyBtn" disabled data-i18n="copy">Copy</button><button id="printBtn" disabled data-i18n="print">Print</button><button id="tentBtn" disabled hidden data-i18n="tent">⛺ Table tent</button></div>
+      <details class="verify glass"><summary data-i18n="verifyTitle">✓ Verify your print</summary>
+        <ol>
+          <li><label><input type="checkbox" class="vchk"> <span data-i18n="v1">Print at 2cm or larger, with margin</span></label></li>
+          <li><label><input type="checkbox" class="vchk"> <span data-i18n="v2">Scan with an iPhone and an Android</span></label></li>
+          <li><label><input type="checkbox" class="vchk"> <span data-i18n="v3">Confirm the link, payment or details are correct</span></label></li>
+        </ol>
+        <p class="vok" hidden data-i18n="vok">✓ Verified — safe to mass-print.</p>
+      </details>
+    </div>
+  </div>
+</section>
+<script id="fieldDefs" type="application/json"><%- JSON.stringify(fieldDefs).replace(/</g, '\\u003c') %></script>

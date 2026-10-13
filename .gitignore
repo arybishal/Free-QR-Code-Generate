@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.env
+.DS_Store
+Thumbs.db
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test export downloads
+qr-*.pdf
+qr-*.png
+*.tmp
+
+# Vendor self-hosted copies
+public/vendor/*.js
+!public/vendor/.gitkeep

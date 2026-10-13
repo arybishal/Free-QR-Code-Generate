@@ -1,0 +1,298 @@
+/* FreeQR generator — 100% client-side. Lazy-loads jspdf only for PDF. */
+'use strict';
+(() => {
+const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
+const B = window.QRPayloads;
+const gen = $('#generator'); if (!gen) return; // content pages
+const PAGE = gen.dataset.pagetype || 'url';
+const DEFS = JSON.parse($('#fieldDefs').textContent);
+const IDS = Object.keys(DEFS);
+let cur = DEFS[PAGE] ? PAGE : 'url';
+
+const tabs = $('#tabs'), form = $('#typeForm'), status = $('#status'),
+  preview = $('#preview'), empty = $('#emptyState'),
+  fg = $('#fg'), bg = $('#bg'), grad = $('#grad'), fg2 = $('#fg2'),
+  modS = $('#modStyle'), eyeS = $('#eyeStyle'),
+  margin = $('#margin'), ec = $('#eclevel'), quality = $('#quality'),
+  logoIn = $('#logo'), logoSize = $('#logoSize');
+let qr = null, text = '', logoImg = null, logoURL = null, lastSaved = '';
+
+// tiny i18n hook: window.__I18N__[lang][key] → EN fallback. Set <html dir> for RTL langs.
+window.__t = (k) => (window.__I18N__ || {}).en?.[k] ?? k;
+
+// --- tabs: SEO pages navigate, batch page switches in place ---
+const slugOf = (id) => ({ url: '', text: 'text-qr-code-generator', wifi: 'wifi-qr-code-generator', contact: 'contact-qr-code-generator', email: 'email-qr-code-generator', phone: 'phone-qr-code-generator', sms: 'sms-qr-code-generator', whatsapp: 'whatsapp-qr-code-generator', location: 'location-qr-code-generator', event: 'event-qr-code-generator', app: 'app-store-qr-code-generator', social: 'social-qr-code-generator', pay: 'upi-paypal-qr-code-generator', crypto: 'crypto-qr-code-generator' }[id]);
+const labelOf = (id) => ({ url: '🌐 Website', text: '📝 Text', wifi: '📶 WiFi', contact: '👤 Contact', email: '✉️ Email', phone: '📞 Phone', sms: '💬 SMS', whatsapp: '🟢 WhatsApp', location: '📍 Location', event: '📅 Event', app: '📲 App', social: '📣 Social', pay: '💸 Pay', crypto: '₿ Crypto' }[id]);
+function buildTabs() {
+  tabs.innerHTML = '';
+  IDS.forEach((id) => {
+    const b = document.createElement('button');
+    b.role = 'tab'; b.textContent = labelOf(id);
+    b.setAttribute('aria-selected', id === cur);
+    b.onclick = () => {
+      if (PAGE !== 'batch' && id !== cur) { location.href = '/' + slugOf(id); return; }
+      cur = id; buildTabs(); buildForm(); render();
+    };
+    tabs.appendChild(b);
+  });
+}
+function buildForm() {
+  form.innerHTML = `<h2>${labelOf(cur)} QR</h2>`;
+  DEFS[cur].forEach(([k, label, ctl, ph]) => {
+    const w = document.createElement('div'); w.className = 'field';
+    if (ctl.startsWith('select:')) w.innerHTML = `<label>${label}<select name="${k}">${ctl.slice(7).split(',').map(o => `<option${o === 'WPA' ? ' selected' : ''}>${o}</option>`).join('')}</select></label>`;
+    else if (ctl === 'check') w.innerHTML = `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="${k}" style="width:22px;height:22px"> ${label}</label>`;
+    else if (ctl === 'textarea') w.innerHTML = `<label>${label}<textarea name="${k}" rows="3" placeholder="${ph || ''}"></textarea></label><span class="err"></span>`;
+    else w.innerHTML = `<label>${label}<input name="${k}" type="${ctl}" placeholder="${ph || ''}" autocomplete="off"></label><span class="err"></span>`;
+    form.appendChild(w);
+  });
+  form.oninput = debounced;
+}
+const vals = () => Object.fromEntries(new FormData(form).entries());
+const transEl = $('#transparent');
+const style = () => ({ fg: fg.value, bg: bg.value, g: grad.checked ? fg2.value : null, t: transEl && transEl.checked, mod: modS.value, eye: eyeS.value, m: +margin.value, ec: ec.value });
+
+// --- QR core ---
+const eyeZone = (n, r, c) => (r < 8 && c < 8) || (r < 8 && c >= n - 8) || (r >= n - 8 && c < 8);
+function makeQR(t) {
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+  const q = qrcode(0, ec.value); q.addData(t, 'Byte'); q.make(); return q;
+}
+function paint(c, q, px, st, withLogo) {
+  const n = q.getModuleCount(), tot = n + st.m * 2, cell = Math.max(1, Math.floor(px / tot)), s = cell * tot;
+  c.width = c.height = s; const x = c.getContext('2d');
+  if (!st.t) { x.fillStyle = st.bg; x.fillRect(0, 0, s, s); } // transparent PNG/SVG: leave alpha
+  x.fillStyle = st.fg;
+  let fill = st.fg;
+  if (st.g) { const g = x.createLinearGradient(0, 0, s, s); g.addColorStop(0, st.fg); g.addColorStop(1, st.g); fill = g; }
+  x.fillStyle = fill;
+  const rr = (a, b, w, h, r) => { x.beginPath(); x.roundRect ? x.roundRect(a, b, w, h, r) : x.rect(a, b, w, h); x.fill(); };
+  for (let r = 0; r < n; r++) for (let col = 0; col < n; col++) {
+    if (!q.isDark(r, col) || eyeZone(n, r, col)) continue;
+    const px0 = (col + st.m) * cell, py0 = (r + st.m) * cell;
+    if (st.mod === 'dots') { x.beginPath(); x.arc(px0 + cell / 2, py0 + cell / 2, cell * 0.42, 0, 7); x.fill(); }
+    else if (st.mod === 'rounded') rr(px0 + 0.5, py0 + 0.5, cell - 1, cell - 1, cell * 0.35);
+    else x.fillRect(px0, py0, cell, cell);
+  }
+  drawEye(x, 0, 0, n, cell, st, fill); drawEye(x, n - 7, 0, n, cell, st, fill); drawEye(x, 0, n - 7, n, cell, st, fill);
+  if (withLogo && logoImg) {
+    const ls = s * (+logoSize.value / 100), pad = cell * 2;
+    x.fillStyle = '#fff'; rr((s - ls) / 2 - pad / 2, (s - ls) / 2 - pad / 2, ls + pad, ls + pad, pad / 2);
+    x.drawImage(logoImg, (s - ls) / 2, (s - ls) / 2, ls, ls);
+  }
+  return { size: s, cell };
+}
+function drawEye(x, c0, r0, n, cell, st, fill) {
+  const X = (c) => (c + st.m) * cell, Y = (r) => (r + st.m) * cell;
+  const rad = st.eye === 'circle' ? 99 : st.eye === 'rounded' ? cell * 1.6 : 0;
+  x.fillStyle = fill;
+  x.beginPath(); x.roundRect ? x.roundRect(X(c0), Y(r0), cell * 7, cell * 7, rad) : x.rect(X(c0), Y(r0), cell * 7, cell * 7); x.fill();
+  if (st.t) { x.save(); x.globalCompositeOperation = 'destination-out'; x.fillRect(X(c0 + 1), Y(r0 + 1), cell * 5, cell * 5); x.restore(); } // punch the eye ring
+  else { x.fillStyle = st.bg; x.fillRect(X(c0 + 1), Y(r0 + 1), cell * 5, cell * 5); }
+  x.fillStyle = fill;
+  x.beginPath(); x.roundRect ? x.roundRect(X(c0 + 2), Y(r0 + 2), cell * 3, cell * 3, rad / 2) : x.rect(X(c0 + 2), Y(r0 + 2), cell * 3, cell * 3); x.fill();
+}
+
+// --- render loop ---
+let tmr;
+function debounced() { preview.classList.add('fade'); clearTimeout(tmr); tmr = setTimeout(render, 150); }
+function render() {
+  status.textContent = ''; form.querySelectorAll('.err').forEach(e => e.textContent = '');
+  let t;
+  try { t = B[cur](vals()); } catch (e) { return setEmpty(e.message); }
+  if (!String(t).trim()) return setEmpty('');
+  try { qr = makeQR(t); text = t; }
+  catch { return setEmpty('Content too long for a QR code. Shorten it or lower error correction.'); }
+  paint(preview, qr, 560, style(), true);
+  preview.classList.remove('fade'); empty.hidden = true; preview.hidden = false;
+  $('#previewWrap').classList.toggle('clear', !!style().t);
+  $$('.dl-bar button, .dl-bar2 button').forEach(b => b.disabled = false);
+  const tb = $('#tentBtn'); if (tb) tb.hidden = cur !== 'wifi';
+  const n = qr.getModuleCount();
+  status.textContent = `✓ Ready — ${n}×${n} modules.`;
+  scanMeter(); saveHist();
+}
+function setEmpty(msg) {
+  qr = null; preview.hidden = true; empty.hidden = false;
+  empty.textContent = msg || 'Enter details — your QR appears here instantly.';
+  status.textContent = msg || '';
+  $$('.dl-bar button, .dl-bar2 button').forEach(b => b.disabled = true);
+  if (msg && form.querySelector('.err')) form.querySelector('.err').textContent = msg;
+  $('#scanRow').hidden = true;
+}
+
+// --- contrast + scannability ---
+const lum = (h) => { const c = [1, 3, 5].map(i => { const v = parseInt(h.substr(i, 2), 16) / 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+const ratio = () => { const a = lum(fg.value), b = lum(bg.value); return (Math.max(a, b) + .05) / (Math.min(a, b) + .05); };
+function scanMeter() {
+  const r = ratio(), row = $('#scanRow'), dot = $('#scanDot'), tx = $('#scanText');
+  $('#contrastWarn').hidden = r >= 4;
+  const logoPct = logoImg ? +logoSize.value : 0;
+  let cls = 'g', msg = `Good — contrast ${r.toFixed(1)}:1.`;
+  if (r < 3 || (logoPct > 20 && ec.value !== 'H') || +margin.value === 0 && r < 4.5) { cls = 'r'; msg = `Poor — ${r < 3 ? 'contrast too low' : logoPct ? 'logo too big / use EC-H' : 'add margin'}. May not scan.`; }
+  else if (r < 4 || logoPct > 18 || +margin.value === 0 || ec.value === 'L') { cls = 'a'; msg = `Fair — ${r < 4 ? `contrast ${r.toFixed(1)}:1` : logoPct ? 'large logo' : 'tight margin / EC-L'}. Test-scan before printing.`; }
+  row.hidden = false; dot.className = cls; tx.textContent = msg;
+}
+
+// --- logo (local only) ---
+logoIn.addEventListener('change', () => {
+  const f = logoIn.files[0]; if (!f) return;
+  if (f.size > 2 * 1024 * 1024) { status.textContent = 'Logo must be ≤2MB.'; logoIn.value = ''; return; }
+  const rd = new FileReader();
+  rd.onload = () => {
+    const img = new Image();
+    img.onload = () => { logoImg = img; logoURL = rd.result; ec.value = 'H'; $('#logoVal').textContent = logoSize.value + '%'; render(); status.textContent += ' (Logo added — error correction set to H.)'; };
+    img.src = rd.result;
+  };
+  rd.readAsDataURL(f);
+});
+
+// --- downloads ---
+const fname = (ext) => `qr-${cur}-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.${ext}`;
+const dl = (href, name) => { const a = document.createElement('a'); a.href = href; a.download = name; document.body.appendChild(a); a.click(); a.remove(); };
+const exportCanvas = (opaque = false) => { const c = document.createElement('canvas'); const st = style(); if (opaque) st.t = false; paint(c, qr, +quality.value, st, true); return c; }; // PDF/print always opaque
+const blobURL = (blob) => { const u = URL.createObjectURL(blob); setTimeout(() => URL.revokeObjectURL(u), 5000); return u; };
+const tainted = () => { status.textContent = 'Export blocked by the browser (SVG logos can taint the canvas). Remove the logo or use a PNG/JPG logo.'; };
+function dlPNG() { try { exportCanvas().toBlob(b => b ? dl(blobURL(b), fname('png')) : tainted()); } catch { tainted(); } }
+function dlJPG() {
+  try {
+  const c = exportCanvas(), o = document.createElement('canvas'); o.width = c.width; o.height = c.height;
+  const x = o.getContext('2d'); x.fillStyle = bg.value; x.fillRect(0, 0, o.width, o.height); x.drawImage(c, 0, 0);
+  o.toBlob(b => b ? dl(blobURL(b), fname('jpg')) : tainted(), 'image/jpeg', .95);
+  } catch { tainted(); }
+}
+function dlSVG() {
+  const st = style(), n = qr.getModuleCount(), m = st.m, tot = n + m * 2;
+  const gradDef = st.g ? `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${st.fg}"/><stop offset="1" stop-color="${st.g}"/></linearGradient></defs>` : '';
+  const F = st.g ? 'url(#g)' : st.fg;
+  let s = '';
+  const eyeCells = new Set();
+  [[0, 0], [n - 7, 0], [0, n - 7]].forEach(([c0, r0]) => { for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++) eyeCells.add((r0 + r) + ',' + (c0 + c)); });
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    if (!qr.isDark(r, c) || eyeCells.has(r + ',' + c)) continue;
+    s += st.mod === 'dots' ? `<circle cx="${c + m + .5}" cy="${r + m + .5}" r=".42" fill="${F}"/>` : `<rect x="${c + m}" y="${r + m}" width="1" height="1" fill="${F}"${st.mod === 'rounded' ? ' rx=".3"' : ''}/>`;
+  }
+  [[0, 0], [n - 7, 0], [0, n - 7]].forEach(([c0, r0]) => {
+    const X = c0 + m, Y = r0 + m, rx = st.eye === 'circle' ? 3.5 : st.eye === 'rounded' ? 1.2 : 0;
+    s += `<rect x="${X}" y="${Y}" width="7" height="7" rx="${rx}" fill="${F}"/><rect x="${X + 1}" y="${Y + 1}" width="5" height="5" fill="${st.bg}"/><rect x="${X + 2}" y="${Y + 2}" width="3" height="3" rx="${rx / 2}" fill="${F}"/>`;
+  });
+  if (logoURL) { // any uploaded logo (png/jpg/svg) embeds as base64 data URL
+    const pct = +logoSize.value / 100, L = tot * pct, o = (tot - L) / 2;
+    s += `<rect x="${o - 1}" y="${o - 1}" width="${L + 2}" height="${L + 2}" rx="1" fill="#fff"/><image href="${logoURL}" x="${o}" y="${o}" width="${L}" height="${L}"/>`;
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${tot} ${tot}" shape-rendering="crispEdges">${gradDef}${st.t ? '' : `<rect width="${tot}" height="${tot}" fill="${st.bg}"/>`}${s}</svg>`;
+  dl(blobURL(new Blob([svg], { type: 'image/svg+xml' })), fname('svg'));
+}
+const loadScript = (src) => window._ls?.[src] ?? (((window._ls ??= {})[src]) = new Promise((res, rej) => {
+  const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = rej; document.head.appendChild(el);
+}));
+async function dlPDF() {
+  try {
+  await loadScript('/vendor/jspdf.umd.min.js');
+  const img = exportCanvas(true).toDataURL('image/png'), d = new window.jspdf.jsPDF(), S = 150;
+  d.addImage(img, 'PNG', (210 - S) / 2, 40, S, S);
+  d.setFontSize(11); d.text(`${cur} QR — scans forever, no expiry`, 105, 267, { align: 'center' });
+  d.save(fname('pdf'));
+  } catch { tainted(); }
+}
+const DL = { png: dlPNG, jpg: dlJPG, svg: dlSVG, pdf: dlPDF };
+async function tentPDF() { // WiFi table tent: A4 landscape, fold line, back face rotated 180°
+  const v = vals(), ssid = (v.ssid || '').trim();
+  if (!ssid) { status.textContent = 'Enter the network name first.'; return; }
+  try {
+    await loadScript('/vendor/jspdf.umd.min.js');
+    const d = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const img = exportCanvas(true).toDataURL('image/png');
+    const face = (cx, flip) => {
+      const o = flip ? { angle: 180 } : {};
+      d.setFontSize(26); d.text('Scan to join WiFi', cx, 32, { align: 'center', ...o });
+      if (flip) d.addImage(img, 'PNG', cx + 35, 45 + 70, 70, 70, undefined, undefined, 180); // 180° about corner → lands on (cx-35,45)
+      else d.addImage(img, 'PNG', cx - 35, 45, 70, 70);
+      d.setFontSize(20); d.text(ssid, cx, 132, { align: 'center', ...o });
+      if ((v.password || '').trim()) { d.setFontSize(14); d.text('Password: ' + v.password.trim(), cx, 144, { align: 'center', ...o }); }
+    };
+    face(74.25, false); face(222.75, true);
+    d.setDrawColor(170); d.setLineDashPattern([3, 2], 0); d.line(148.5, 8, 148.5, 202);
+    d.save(`wifi-tent-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.pdf`);
+    status.textContent = '✓ Tent downloaded — print landscape, fold on the dashed line.';
+  } catch { tainted(); }
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-dl]'); if (!b || b.disabled || !qr) return;
+  DL[b.dataset.dl]();
+});
+$('#copyBtn').onclick = async () => {
+  try { const b = await new Promise(r => exportCanvas().toBlob(r)); if (!b) return tainted(); await navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]); status.textContent = '✓ Copied to clipboard.'; }
+  catch { status.textContent = 'Copy failed — download PNG instead.'; }
+};
+$('#printBtn').onclick = () => {
+  try {
+    const w = open('', '_blank'); if (!w) { status.textContent = 'Popup blocked — allow popups or download the PNG.'; return; }
+    w.document.write(`<img src="${exportCanvas().toDataURL('image/png')}" style="width:400px" onload="print()">`); w.document.close();
+  } catch { tainted(); }
+};
+
+// --- history gallery (localStorage only, with thumbnails) ---
+function thumb() {
+  try {
+    const c = document.createElement('canvas');
+    paint(c, qr, 112, { ...style(), m: 2 }, false); // small, no logo
+    return c.toDataURL('image/png');
+  } catch { return ''; }
+}
+function saveHist() {
+  const snap = JSON.stringify({ t: cur, v: vals(), s: style() });
+  if (snap === lastSaved) return; lastSaved = snap;
+  try {
+    const h = JSON.parse(localStorage.getItem('fq-hist') || '[]');
+    h.unshift({ ...JSON.parse(snap), img: thumb(), when: Date.now() });
+    localStorage.setItem('fq-hist', JSON.stringify(h.slice(0, 8)));
+    drawHist();
+  } catch { /* private mode / quota */ }
+}
+function drawHist() {
+  const box = $('#histList'); if (!box) return;
+  let h = []; try { h = JSON.parse(localStorage.getItem('fq-hist') || '[]'); } catch { /* ignore */ }
+  box.innerHTML = h.length ? '' : '<p class="hint" data-i18n="nothingYet">Nothing yet.</p>';
+  h.forEach((it, i) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'vg';
+    const img = document.createElement('img'); img.alt = ''; img.loading = 'lazy';
+    if (it.img) img.src = it.img;
+    const sp = document.createElement('span');
+    sp.textContent = `${labelOf(it.t)} — ${Object.values(it.v).filter(Boolean).join(' ').slice(0, 60) || '(empty)'}`;
+    b.append(img, sp);
+    b.onclick = () => {
+      if (PAGE !== 'batch' && it.t !== cur) { location.href = '/' + slugOf(it.t); return; }
+      cur = it.t; buildTabs(); buildForm();
+      Object.entries(it.v).forEach(([k, v]) => { const el = form.elements[k]; if (el) el.value = v; });
+      fg.value = it.s.fg; bg.value = it.s.bg; modS.value = it.s.mod; eyeS.value = it.s.eye; margin.value = it.s.m;
+      if (it.s.g) { grad.checked = true; fg2.value = it.s.g; } else grad.checked = false;
+      if (transEl) transEl.checked = !!it.s.t;
+      render();
+    };
+    box.appendChild(b);
+  });
+  if (window.__applyLang) window.__applyLang(); // translate "Nothing yet" etc.
+}
+$('#clearHist').onclick = () => { localStorage.removeItem('fq-hist'); lastSaved = ''; drawHist(); };
+
+// --- wiring (theme lives in ui.js) ---
+$('#marginVal').textContent = margin.value;
+[fg, bg, fg2, modS, eyeS, ec, quality].forEach(el => el.addEventListener('input', debounced));
+grad.addEventListener('change', debounced);
+if (transEl) transEl.addEventListener('change', debounced);
+{ const tb = $('#tentBtn'); if (tb) tb.onclick = tentPDF; }
+margin.addEventListener('input', () => { $('#marginVal').textContent = margin.value; debounced(); });
+logoSize.addEventListener('input', () => { $('#logoVal').textContent = logoSize.value + '%'; debounced(); });
+
+tabs.addEventListener('keydown', (e) => { // tablist arrow-key pattern
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  const btns = [...tabs.querySelectorAll('button')];
+  let i = btns.indexOf(document.activeElement); if (i < 0) return;
+  i = (i + (e.key === 'ArrowRight' ? 1 : -1) + btns.length) % btns.length;
+  btns[i].focus(); btns[i].click(); e.preventDefault();
+});
+buildTabs(); buildForm(); drawHist();
+let n = 0; const iv = setInterval(() => { if (window.qrcode || ++n > 60) { clearInterval(iv); if (window.qrcode) render(); else setEmpty('QR engine failed to load (offline?). Retry after reconnect.'); } }, 100);
+
+})();

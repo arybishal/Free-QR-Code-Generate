@@ -1,0 +1,34 @@
+{
+  "name": "qrnova",
+  "version": "1.0.0",
+  "description": "QRNova — free QR code generator. No sign-up, no watermark. All QR bytes generated in the browser.",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "vendor": "node scripts/vendor.js",
+    "postinstall": "node scripts/vendor.js",
+    "build": "node scripts/build.js",
+    "cover": "node scripts/generate-cover.js",
+    "export": "node scripts/export.js",
+    "export-static": "node scripts/export.js",
+    "smoke": "node scripts/qr-smoke.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "compression": "^1.7.4",
+    "dotenv": "^16.4.5",
+    "ejs": "^3.1.9",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
+    "helmet": "^7.1.0",
+    "jspdf": "^2.5.1",
+    "jszip": "^3.10.1",
+    "qrcode-generator": "^1.4.4"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.0"
+  },
+  "engines": { "node": ">=20" }
+}

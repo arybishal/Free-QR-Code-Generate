@@ -1,0 +1,15 @@
+</div></main>
+<footer>
+  <p><strong><%= brand %></strong> <span data-i18n="tagline">· free, private, forever. Nothing leaves your browser.</span></p>
+  <nav aria-label="Footer">
+    <a href="/about" data-i18n="about">About</a> · <a href="/privacy" data-i18n="privacy">Privacy</a> · <a href="/terms" data-i18n="terms">Terms</a> · <a href="/contact" data-i18n="contact">Contact</a> · <a href="/batch-qr-code-generator" data-i18n="batch">Batch</a>
+  </nav>
+</footer>
+<script src="/vendor/qrcode.min.js" defer></script>
+<script src="/js/qr-payloads.js" defer></script>
+<script src="/js/ui<%= min %>.js" defer></script>
+<% if (typeof hasGenerator !== 'undefined' && hasGenerator) { %><script src="/js/app<%= min %>.js" defer></script><% } %>
+<% if (typeof page !== 'undefined' && page.batch) { %><script src="/js/batch<%= min %>.js" defer></script><% } %>
+<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));</script>
+</body>
+</html>

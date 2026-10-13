@@ -1,0 +1,71 @@
+/* QRNova UI chrome — theme + glass nav. Runs on every page; engine lives in app.js. */
+'use strict';
+(() => {
+  // theme: remembered choice wins, else OS preference
+  const root = document.documentElement, btn = document.getElementById('themeBtn');
+  if (localStorage.getItem('qn-theme')) root.dataset.theme = localStorage.getItem('qn-theme');
+  else if (matchMedia('(prefers-color-scheme: dark)').matches) root.dataset.theme = 'dark';
+  const sync = () => btn && btn.setAttribute('aria-pressed', root.dataset.theme === 'dark');
+  sync();
+  if (btn) btn.onclick = () => {
+    root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('qn-theme', root.dataset.theme); sync();
+  };
+  // print-verify checklist: reveal success when all boxes ticked
+  // language toggle: EN/NE/HI/AR chrome strings (tool config stays English for now)
+  const LANGS = {
+    ne: { generator: 'जेनेरेटर', features: 'विशेषता', faq: 'सोधिने प्रश्न', about: 'बारेमा', freeForever: '✓ सधैं निःशुल्क', noSignup: '✓ साइन-अप छैन', noWatermark: '✓ वाटरमार्क छैन', heroSub: 'लिङ्क, वाइफाइ, सम्पर्क, पाठ र थप — तपाईंको ब्राउजरमै बन्छ। साइन-अप छैन, वाटरमार्क छैन, म्याद सकिँदैन।', reassure: 'सधैं निःशुल्क। साइन-अप छैन। तपाईंको ब्राउजरबाट केही बाहिर जाँदैन।', copy: 'कपी', print: 'प्रिन्ट', tent: '⛺ टेबल टेन्ट', recent: '🕘 भर्खरका (यही ब्राउजरमा मात्र)', clearHist: 'इतिहास मेट्नुहोस्', nothingYet: 'अहिलेसम्म केही छैन।', verifyTitle: '✓ प्रिन्ट जाँच्नुहोस्', v1: '२ सेमी वा ठूलोमा, मार्जिनसहित प्रिन्ट गर्नुहोस्', v2: 'आइफोन र एन्ड्रोइड दुवैबाट स्क्यान गर्नुहोस्', v3: 'लिङ्क, भुक्तानी वा विवरण सही भएको पुष्टि गर्नुहोस्', vok: '✓ प्रमाणित — अब धेरै प्रिन्ट गर्न सुरक्षित।', tagline: '· निःशुल्क, निजी, सधैं। तपाईंको ब्राउजरबाट केही बाहिर जाँदैन।', privacy: 'गोपनीयता', terms: 'सर्तहरू', contact: 'सम्पर्क', batch: 'ब्याच', statTypes: 'QR प्रकार', statFormats: 'डाउनलोड ढाँचा', statPx: 'अधिकतम पिक्सेल', statFree: 'सधैं', ctaT: 'तयार हुनुहुन्छ?', ctaS: 'माथि आफ्नो पहिलो कोड बनाउनुहोस् — बीस सेकेन्ड मात्र लाग्छ।', ctaBtn: 'QR कोड बनाउनुहोस्', dlHint: 'तल ढाँचा छान्नुहोस् ↓' },
+    hi: { generator: 'जनरेटर', features: 'फीचर्स', faq: 'सामान्य प्रश्न', about: 'परिचय', freeForever: '✓ हमेशा मुफ्त', noSignup: '✓ साइन-अप नहीं', noWatermark: '✓ वॉटरमार्क नहीं', heroSub: 'लिंक, वाईफाई, संपर्क, टेक्स्ट और बहुत कुछ — आपके ब्राउजर में बनता है। साइन-अप नहीं, वॉटरमार्क नहीं, एक्सपायरी नहीं।', reassure: 'हमेशा मुफ्त। साइन-अप नहीं। आपके ब्राउजर से कुछ बाहर नहीं जाता।', copy: 'कॉपी', print: 'प्रिंट', tent: '⛺ टेबल टेंट', recent: '🕘 हाल के (सिर्फ इसी ब्राउजर में)', clearHist: 'इतिहास साफ़ करें', nothingYet: 'अभी कुछ नहीं।', verifyTitle: '✓ प्रिंट जांचें', v1: '2 सेमी या बड़े आकार में, मार्जिन के साथ प्रिंट करें', v2: 'आईफोन और एंड्रॉयड दोनों से स्कैन करें', v3: 'लिंक, पेमेंट या विवरण सही है, पुष्टि करें', vok: '✓ सत्यापित — अब बल्क प्रिंट सुरक्षित है।', tagline: '· मुफ्त, निजी, हमेशा। आपके ब्राउजर से कुछ बाहर नहीं जाता।', privacy: 'गोपनीयता', terms: 'शर्तें', contact: 'संपर्क', batch: 'बैच', statTypes: 'QR प्रकार', statFormats: 'डाउनलोड फॉर्मेट', statPx: 'अधिकतम पिक्सेल', statFree: 'हमेशा', ctaT: 'तैयार हैं?', ctaS: 'ऊपर अपना पहला कोड बनाएं — सिर्फ बीस सेकंड लगते हैं।', ctaBtn: 'QR कोड बनाएं', dlHint: 'नीचे फॉर्मेट चुनें ↓' },
+    ar: { generator: 'المولّد', features: 'المزايا', faq: 'الأسئلة الشائعة', about: 'حول', freeForever: '✓ مجاني للأبد', noSignup: '✓ بدون تسجيل', noWatermark: '✓ بدون علامة مائية', heroSub: 'روابط وواي فاي وجهات اتصال ونصوص والمزيد — تُنشأ في متصفحك. بدون تسجيل، بدون علامة مائية، بدون انتهاء.', reassure: 'مجاني للأبد. بدون تسجيل. لا شيء يغادر متصفحك.', copy: 'نسخ', print: 'طباعة', tent: '⛺ خيمة طاولة', recent: '🕘 الأخيرة (في هذا المتصفح فقط)', clearHist: 'مسح السجل', nothingYet: 'لا شيء بعد.', verifyTitle: '✓ تحقق من الطباعة', v1: 'اطبع بحجم 2 سم أو أكبر، مع هامش', v2: 'امسح بهاتف آيفون وأندرويد', v3: 'تأكد من صحة الرابط أو الدفع أو التفاصيل', vok: '✓ تم التحقق — الطباعة بكميات آمنة.', tagline: '· مجاني، خاص، للأبد. لا شيء يغادر متصفحك.', privacy: 'الخصوصية', terms: 'الشروط', contact: 'اتصل', batch: 'دفعة', statTypes: 'أنواع QR', statFormats: 'صيغ التنزيل', statPx: 'أقصى دقة', statFree: 'للأبد', ctaT: 'جاهز؟', ctaS: 'أنشئ رمزك الأول أعلاه — يستغرق عشرين ثانية فقط.', ctaBtn: 'أنشئ رمز QR', dlHint: 'اختر الصيغة أدناه ↓' },
+  };
+  function applyLang() {
+    const l = localStorage.getItem('qn-lang') || 'en', d = LANGS[l] || {};
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      if (el.dataset.en === undefined) el.dataset.en = el.textContent; // remember English once
+      const k = el.dataset.i18n;
+      el.textContent = l === 'en' ? el.dataset.en : (d[k] || el.dataset.en);
+    });
+    document.documentElement.lang = l;
+    document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr'; // RTL-ready
+    const names = { en: 'English', ne: 'नेपाली', hi: 'हिन्दी', ar: 'العربية' };
+    const flag = document.getElementById('langFlag'), btn = document.getElementById('langBtn');
+    if (flag) flag.className = 'flag fl-' + l;
+    if (btn) btn.setAttribute('aria-label', 'Language: ' + (names[l] || l));
+    document.querySelectorAll('#langMenu [data-lang]').forEach(b => b.setAttribute('aria-checked', b.dataset.lang === l));
+  }
+  window.__applyLang = applyLang; // engine calls after rendering dynamic strings
+  applyLang();
+  document.addEventListener('click', (e) => {
+    const lb = e.target.closest('#langMenu [data-lang]');
+    const tgl = e.target.closest('#langBtn'), menu = document.getElementById('langMenu');
+    if (tgl && menu) {
+      const open = menu.hidden;
+      menu.hidden = !open; tgl.setAttribute('aria-expanded', open);
+      e.stopPropagation(); return;
+    }
+    if (lb) {
+      localStorage.setItem('qn-lang', lb.dataset.lang); applyLang();
+      const m = document.getElementById('langMenu'); if (m) m.hidden = true;
+      const b = document.getElementById('langBtn'); if (b) b.setAttribute('aria-expanded', 'false');
+    }
+    if (menu && !menu.hidden && !e.target.closest('.langwrap')) { menu.hidden = true; document.getElementById('langBtn').setAttribute('aria-expanded', 'false'); }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { const menu = document.getElementById('langMenu'); if (menu && !menu.hidden) { menu.hidden = true; document.getElementById('langBtn').setAttribute('aria-expanded', 'false'); } }
+  });
+  document.addEventListener('change', (e) => {
+    if (e.target.classList && e.target.classList.contains('vchk')) {
+      const box = e.target.closest('.verify');
+      box.querySelector('.vok').hidden = ![...box.querySelectorAll('.vchk')].every(c => c.checked);
+    }
+  });
+  // mobile hamburger → glass dropdown
+  const tgl = document.getElementById('navToggle'), links = document.getElementById('navLinks');
+  if (tgl && links) {
+    const set = (open) => { links.classList.toggle('open', open); tgl.setAttribute('aria-expanded', open); tgl.setAttribute('aria-label', open ? 'Close menu' : 'Open menu'); };
+    tgl.onclick = (e) => { e.stopPropagation(); set(!links.classList.contains('open')); };
+    links.addEventListener('click', (e) => { if (e.target.tagName === 'A') set(false); });
+    document.addEventListener('click', (e) => { if (!e.target.closest('.navbar')) set(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { set(false); tgl.blur(); } });
+  }
+})();

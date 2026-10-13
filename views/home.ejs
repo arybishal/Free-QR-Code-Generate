@@ -1,0 +1,51 @@
+<%
+const appLd = { '@context':'https://schema.org','@type':'WebApplication','name': brand,'applicationCategory':'UtilitiesApplication','operatingSystem':'Any','offers':{'@type':'Offer','price':'0'},'description': page.desc };
+const faqLd = { '@context':'https://schema.org','@type':'FAQPage','mainEntity': home.faqs.map(f=>({'@type':'Question','name':f[0],'acceptedAnswer':{'@type':'Answer','text':f[1]}})) };
+const safe = (o) => JSON.stringify(o).replace(/</g, '\\u003c');
+const jsonld = `<script type="application/ld+json">${safe(appLd)}</script><script type="application/ld+json">${safe(faqLd)}</script>`;
+const hasGenerator = true;
+%>
+<%- include('partials/head', { jsonld }) %>
+
+<section class="hero">
+  <h1>QR codes in seconds. <span class="hl">Free forever.</span></h1>
+  <p class="sub" data-i18n="heroSub"><%= home.sub %></p>
+  <ul class="badges" aria-label="Trust badges"><li data-i18n="freeForever">✓ Free forever</li><li data-i18n="noSignup">✓ No sign-up</li><li data-i18n="noWatermark">✓ No watermark</li></ul>
+</section>
+
+<%- include('partials/generator') %>
+
+<section class="stats" aria-label="At a glance">
+  <% const statKeys = ['statTypes','statFormats','statPx','statFree']; %>
+  <% home.stats.forEach((s, i) => { %><div class="stat glass"><b><%= s[0] %></b><span data-i18n="<%= statKeys[i] %>"><%= s[1] %></span></div><% }) %>
+</section>
+
+<section class="section" id="features">
+  <div class="section-head"><h2>Everything you need, nothing you pay for</h2><p>A complete QR studio that runs entirely in your browser.</p></div>
+  <div class="grid"><% home.features.forEach(f => { %><div class="glass feat"><strong><%= f[0] %></strong><p><%= f[1] %></p></div><% }) %></div>
+</section>
+
+<section class="section" id="how">
+  <div class="section-head"><h2>How it works</h2><p>Three steps, about twenty seconds.</p></div>
+  <ol class="steps"><% home.steps.forEach(s => { %><li class="glass"><strong><%= s[0] %></strong><p><%= s[1] %></p></li><% }) %></ol>
+</section>
+
+<section class="section">
+  <div class="section-head"><h2>Made for real life</h2><p>One free tool, endless places to stick a code.</p></div>
+  <ul class="chips"><% home.chips.forEach(c => { %><li class="glass"><%= c %></li><% }) %></ul>
+</section>
+
+<section class="section" id="faq">
+  <div class="section-head"><h2>Frequently asked questions</h2></div>
+  <% home.faqs.forEach((f,i) => { %><details class="glass" <%= i===0?'open':'' %>><summary><%= f[0] %></summary><p><%= f[1] %></p></details><% }) %>
+</section>
+
+<section class="cta">
+  <h2 data-i18n="ctaT"><%= home.cta[0] %></h2>
+  <p data-i18n="ctaS"><%= home.cta[1] %></p>
+  <a class="btn" href="#generator" data-i18n="ctaBtn"><%= home.cta[2] %></a>
+</section>
+
+<section class="section"><div class="section-head"><h2>Explore QR types</h2></div><div class="grid"><% related.forEach(r => { %><div class="glass"><a href="/<%= r.slug %>"><strong><%= r.icon %> <%= r.label %> QR</strong></a><p>Create &amp; download free.</p></div><% }) %></div></section>
+
+<%- include('partials/foot', { hasGenerator }) %>
