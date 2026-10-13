@@ -79,6 +79,19 @@ Need 50 table numbers, 200 event badges, or an entire product catalog?
 - Operates offline via Service Worker caching.
 - Zero external runtime CDNs: all dependencies (`qrcode-generator`, `jspdf`, `jszip`) are self-hosted.
 
+### 🌍 Internationalization (10 Global Languages)
+Built-in instant language switcher in the floating navigation header:
+- 🇺🇸 **English** (Default)
+- 🇨🇳 **Mandarin Chinese** (`zh` / 中文 简体)
+- 🇪🇸 **Spanish** (`es` / Español)
+- 🇯🇵 **Japanese** (`ja` / 日本語)
+- 🇵🇹 **Portuguese** (`pt` / Português)
+- 🇰🇷 **Korean** (`ko` / 한국어)
+- 🇷🇺 **Russian** (`ru` / Русский)
+- 🇳🇵 **Nepali** (`ne` / नेपाली)
+- 🇮🇳 **Hindi** (`hi` / हिन्दी)
+- 🇸🇦 **Arabic** (`ar` / العربية with native RTL layout support)
+
 ---
 
 ## 🚀 How to Use It
