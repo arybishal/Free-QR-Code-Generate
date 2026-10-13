@@ -29,6 +29,10 @@ Most commercial QR code generators lock basic features behind aggressive paywall
 - **Never Expires**: Encodes data directly into standard static QR codes. Because there is no middleman redirect server, your printed QR codes will work indefinitely — until the physical paper or sign degrades.
 - **Production-Ready Quality**: Export true vector **SVG** (infinitely scalable for billboards and packaging), ultra-high-definition **4096px PNG/JPG**, and print-ready **PDF**.
 
+<p align="center">
+  <img src="./assets/ui-preview.png" alt="QRNova Modern UI Studio Interface" width="95%" />
+</p>
+
 ---
 
 ## ✨ Useful Features
